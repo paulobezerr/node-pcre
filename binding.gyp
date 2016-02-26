@@ -1,5 +1,5 @@
 {
-  'targets': [
+ 'targets': [
     {
       'target_name': 'pcre',
       'sources': [ 'src/binding.cc' ],
@@ -20,6 +20,9 @@
       'cflags_cc+': [ '-O3' ],
       'cflags_c!': [ '-O2' ],
       'cflags_c+': [ '-O3' ],
+      "include_dirs": [
+        "<!(node -e \"require('nan')\")"
+      ]
     },
   ]
 }

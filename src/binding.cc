@@ -1,6 +1,8 @@
 #include <node.h>
+#include <v8.h>
 #include <node_buffer.h>
 #include <string.h>
+
 #ifdef __APPLE__
 # include <tr1/unordered_map>
   using namespace std::tr1;
@@ -135,7 +137,7 @@ int getCapInfo(pcre *re, struct re_info *info) {
   return 1;
 }
 
-class PCRE : public ObjectWrap {
+class PCRE : public Persistent<Function> {
   public:
     pcre *re;
     struct re_info info;
@@ -156,13 +158,19 @@ class PCRE : public ObjectWrap {
       FREE_INFO(&info);
     }
 
-    static Handle<Value> New(const Arguments& args) {
-      HandleScope scope;
+    static Handle<Value> New(const FunctionCallbackInfo<Value>& args) {
+      Isolate* isolate = Isolate::GetCurrent();
+      HandleScope scope(isolate);
 
       if (!args.IsConstructCall()) {
-        return ThrowException(Exception::Error(
-            String::New("Use `new` to create instances of this object."))
+        isolate->ThrowException(Exception::Error(
+            String::NewFromUtf8(
+              isolate,
+              "Use `new` to create instances of this object."
+            )
+          )
         );
+        return;
       }
 
       PCRE *obj = new PCRE();
@@ -181,7 +189,7 @@ class PCRE : public ObjectWrap {
       return args.This();
     }
 
-    static Handle<Value> Load(const Arguments& args) {
+    static Handle<Value> Load(const FunctionCallbackInfo<Value>& args) {
       HandleScope scope;
       PCRE *obj = ObjectWrap::Unwrap<PCRE>(args.This());
 
@@ -226,7 +234,7 @@ class PCRE : public ObjectWrap {
       return Undefined();
     }
 
-    static Handle<Value> Save(const Arguments& args) {
+    static Handle<Value> Save(const FunctionCallbackInfo<Value>& args) {
       HandleScope scope;
       PCRE *obj = ObjectWrap::Unwrap<PCRE>(args.This());
 
@@ -248,7 +256,7 @@ class PCRE : public ObjectWrap {
       }
     }
 
-    static Handle<Value> Set(const Arguments& args) {
+    static Handle<Value> Set(const FunctionCallbackInfo<Value>& args) {
       HandleScope scope;
       PCRE *obj = ObjectWrap::Unwrap<PCRE>(args.This());
 
@@ -295,7 +303,7 @@ class PCRE : public ObjectWrap {
       return Undefined();
     }
 
-    static Handle<Value> Study(const Arguments& args) {
+    static Handle<Value> Study(const FunctionCallbackInfo<Value>& args) {
       HandleScope scope;
       PCRE *obj = ObjectWrap::Unwrap<PCRE>(args.This());
 
@@ -347,7 +355,7 @@ class PCRE : public ObjectWrap {
       }
     }
 
-    static Handle<Value> Exec_(const Arguments& args, int what = WHAT_EXEC) {
+    static Handle<Value> Exec_(const FunctionCallbackInfo<Value>& args, int what = WHAT_EXEC) {
       HandleScope scope;
       pcre *re;
       struct re_info *info = NULL;
@@ -644,25 +652,26 @@ class PCRE : public ObjectWrap {
       }
     }
 
-    static Handle<Value> Exec(const Arguments& args) {
+    static Handle<Value> Exec(const FunctionCallbackInfo<Value>& args) {
       return PCRE::Exec_(args, WHAT_EXEC);
     }
 
-    static Handle<Value> ExecAll(const Arguments& args) {
+    static Handle<Value> ExecAll(const FunctionCallbackInfo<Value>& args) {
       return PCRE::Exec_(args, WHAT_EXECALL);
     }
 
-    static Handle<Value> Test(const Arguments& args) {
+    static Handle<Value> Test(const FunctionCallbackInfo<Value>& args) {
       return PCRE::Exec_(args, WHAT_TEST);
     }
 
-    static Handle<Value> Version(const Arguments& args) {
+    static Handle<Value> Version(const FunctionCallbackInfo<Value>& args) {
       HandleScope scope;
       return scope.Close(String::New(pcre_version()));
     }
 
     static void Initialize(Handle<Object> target) {
-      HandleScope scope;
+      Isolate* isolate = Isolate::GetCurrent();
+      HandleScope scope(isolate);
 
       Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
       Local<String> name = String::NewSymbol("PCRE");
@@ -693,11 +702,11 @@ class PCRE : public ObjectWrap {
     }
 };
 
-extern "C" {
-  void init(Handle<Object> target) {
-    HandleScope scope;
-    PCRE::Initialize(target);
-  }
-
-  NODE_MODULE(pcre, init);
+void Init(Handle<Object> target) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  
+  PCRE::Initialize(target);
 }
+
+NODE_MODULE(pcre, Init);
